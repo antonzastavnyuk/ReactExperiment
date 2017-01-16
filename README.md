@@ -1,2 +1,2 @@
-# RestAPI #
-to start npm install && gulp
+# React  #
+browser-sync start --server --files "*.html, *.js"
