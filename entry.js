@@ -19,29 +19,7 @@ var Hotel = function(props) {
 const HotelsListClass = React.createClass({
   getInitialState() {
     return {
-      hotels: [
-        // {
-        //   name: 'Sheraton Times Square',
-        //   address: '811 7th Ave W 53rd Street New York, NY 10019',
-        //   phone: '(212) 581-1000',
-        //   price: '$259',
-        //   distance: '1.9 miles to Javits'
-        // },
-        // {
-        //   name: 'DoubleTree by Hilton NYC Chelsea',
-        //   address: '128 W 29th Street New York, NY 10001',
-        //   phone: '(212) 564-0994',
-        //   price: '$229',
-        //   distance: '1.2 miles to Javits'
-        //   },
-        // {
-        //   name: 'Candlewood Suites Times Square',
-        //   address: '339 W 39th Street New York, NY 10018',
-        //   phone: '(212) 967-2254',
-        //   price: '$249',
-        //   distance: '0.7 miles to Javits'
-        // }
-      ],
+      hotels: [],
       sorted: false,
       intialText: ''
     };
@@ -49,26 +27,29 @@ const HotelsListClass = React.createClass({
 
   loadLocations: function(){
     var _this = this;
-    // console.log(_this);
     var request = new XMLHttpRequest();
     request.open('GET', 'http://www.inforum.nyc/wp-json/wp/v2/locations?per_page=100', true);
-
     request.onload = function() {
       if (request.status >= 200 && request.status < 400) {
         var data = JSON.parse(request.responseText);
 
         var hotels = data.map(function(item) {
-            // if(item['location-type'] == 2) {
-              return {
-                name: item.title.rendered,
-                address: item.acf.location_address.replace(/<\/?[^>]+(>|$)/g, ""),
-                phone: item.acf.location_phone,
-                price: item.acf.location_price,
-                distance: item.acf.location_distance
-              }
-            // }
+          var temp;
+          if (item['location-type'] == 2) {
+            temp = {
+              name: item.title.rendered,
+              address: item.acf.location_address.replace(/<\/?[^>]+(>|$)/g, ""),
+              phone: item.acf.location_phone,
+              price: item.acf.location_price,
+              distance: item.acf.location_distance
+            }
+          return temp;
+          }
         });
 
+        while (hotels.indexOf(undefined) > 0) {
+          hotels.splice(hotels.indexOf(undefined), 1);
+        }
         _this.setState({hotels: hotels});
       } else {
         // We reached our target server, but it returned an error
@@ -179,7 +160,15 @@ function sortByNameDesc(a, b) {
 function sortByPrice (a, b) {
   var aReplace = a.price.replace('$', '');
   var bReplace = b.price.replace('$', '');
-  return aReplace - bReplace;
+
+  if (aReplace > bReplace) {
+    return 1;
+  }
+  if (aReplace < bReplace) {
+    return -1;
+  }
+  // names must be equal
+  return 0;
 };
 
 function sortByDistance (a, b) {
