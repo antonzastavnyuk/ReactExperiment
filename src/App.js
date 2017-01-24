@@ -89,11 +89,12 @@ const HotelsListClass = React.createClass({
 
   filterByName: function(event){
 
-    var target = event.target.value;
+    var target = event.target.value.toLowerCase();
     this.setState(function(){
       return {
         filtredByName: this.state.hotels.filter(function(item){
-          if (item.title.rendered.indexOf(target) >= 0){
+          var itemLowerCase = item.title.rendered.toLowerCase()
+          if (itemLowerCase.indexOf(target) >= 0){
             return true;
           }
         }),
