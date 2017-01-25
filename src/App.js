@@ -1,72 +1,40 @@
 import React from 'react';
-
-var Hotel = function(props) {
-  var item = props.data;
-  var index = props.index;
-  return (
-    <li key={index}>
-      <span>{item.title.rendered} </span>
-      <a href={item.acf.location_phone.split(' ').join('')}>{item.acf.location_phone} </a>
-      <span>{item.acf.location_price} </span>
-      <span>{item.acf.location_distance} </span>
-    </li>
-  )
-};
-
-var HotelsList = function(props){
-  return (
-    <ul className='hotels__list js-hotels-list'>
-      {props.hotels.map(function(item, index){
-        if (item['location-type'][0] == 2){
-          return (
-            <Hotel key={index} data={item}/>
-          )
-        } else {
-          return null;
-        }
-      })}
-    </ul>
-  )
-}
+import HotelsList from './components/hotelsList';
+import {filterHotels, sortByNameAsc, sortByNameDesc, sortByPriceAsc, sortByPriceDesc, sortByDistanceAsc, sortByDistanceDesc, } from './components/functions';
+require('es6-promise').polyfill();
+require('isomorphic-fetch');
 
 const HotelsListClass = React.createClass({
   getInitialState() {
     return {
       hotels: [],
-      sorted: false,
+      sortedByName: false,
+      sortedByPrice: false,
+      sortedByDistance: false,
       filtredByName: [],
-      intialText: '',
       enteredText: false
     };
   },
 
   loadLocations: function(){
     var _this = this;
-    var request = new XMLHttpRequest();
-    request.open('GET', 'http://www.inforum.nyc/wp-json/wp/v2/locations?per_page=100', true);
-    request.onload = function() {
-      if (request.status >= 200 && request.status < 400) {
-        _this.setState({hotels: JSON.parse(request.responseText)});
-      }
-    };
-
-    request.onerror = function() {
-      // There was a connection error of some sort
-    };
-    request.send();
-  },
-
-  reverseText: function(event) {
-    this.setState({
-      intialText: event.target.value.split('').reverse().join('')
+    fetch('http://www.inforum.nyc/wp-json/wp/v2/locations?per_page=100')
+    .then(function(response) {
+        if (response.status >= 400) {
+            throw new Error("Bad response from server");
+        }
+        return response.json();
+    })
+    .then(function(hotels) {
+      _this.setState({hotels: hotels});
     });
   },
 
   sortByName: function() {
     this.setState(function(prevState) {
       return {
-        hotels: this.state.sorted ? prevState.hotels.sort(sortByNameDesc) : prevState.hotels.sort(sortByNameAsc),
-        sorted: !this.state.sorted
+        hotels: this.state.sortedByName ? prevState.hotels.sort(sortByNameDesc) : prevState.hotels.sort(sortByNameAsc),
+        sortedByName: !this.state.sortedByName
       };
     });
   },
@@ -74,7 +42,8 @@ const HotelsListClass = React.createClass({
   sortByPrice: function() {
     this.setState(function (prevState) {
       return {
-        hotels: prevState.hotels.sort(sortByPrice)
+        hotels: this.state.sortedByPrice ? prevState.hotels.sort(sortByPriceDesc) : prevState.hotels.sort(sortByPriceAsc),
+        sortedByPrice: !this.state.sortedByPrice
       }
     });
   },
@@ -82,33 +51,28 @@ const HotelsListClass = React.createClass({
   sortByDistance: function() {
     this.setState(function (prevState) {
       return {
-        hotels: prevState.hotels.sort(sortByDistance)
+        hotels: this.state.sortedByDistance ? prevState.hotels.sort(sortByDistanceDesc) : prevState.hotels.sort(sortByDistanceAsc),
+        sortedByDistance: !this.state.sortedByDistance
       }
     });
   },
 
   filterByName: function(event){
-
     var target = event.target.value.toLowerCase();
-    this.setState(function(){
-      return {
-        filtredByName: this.state.hotels.filter(function(item){
-          var itemLowerCase = item.title.rendered.toLowerCase()
-          if (itemLowerCase.indexOf(target) >= 0){
-            return true;
-          }
-        }),
+    if (target.length > 0) {
+      this.setState({
+        filtredByName: filterHotels (this.state, target),
         enteredText: true
-      }
-    });
+      })
+    } else {
+      this.setState({
+        enteredText: false
+      });
+    }
   },
 
   componentDidMount: function(props) {
     this.loadLocations();
-  },
-
-  componentWillMount: function(props) {
-    // empty
   },
 
   render: function() {
@@ -118,61 +82,10 @@ const HotelsListClass = React.createClass({
         <button onClick={this.sortByName}>Sort by name</button>
         <button onClick={this.sortByPrice}>Sort by price</button>
         <button onClick={this.sortByDistance}>Sort by distance</button>
-        <h1>{this.state.intialText}</h1>
-        <input type='text' defaultValue={this.state.intialText} onChange={this.filterByName}/>
+        <input type='text' onChange={this.filterByName}/>
       </div>
     )
   }
 });
-
-function sortByNameAsc(a, b) {
-  var nameA = a.title.rendered.toUpperCase(); // ignore upper and lowercase
-  var nameB = b.title.rendered.toUpperCase(); // ignore upper and lowercase
-  if (nameA < nameB) {
-    return -1;
-  }
-  if (nameA > nameB) {
-    return 1;
-  }
-
-  // names must be equal
-  return 0;
-};
-
-function sortByNameDesc(a, b) {
-  var nameA = a.title.rendered.toUpperCase(); // ignore upper and lowercase
-  var nameB = b.title.rendered.toUpperCase(); // ignore upper and lowercase
-  if (nameA < nameB) {
-    return 1;
-  }
-  if (nameA > nameB) {
-    return -1;
-  }
-  return 0;
-};
-
-function sortByPrice (a, b) {
-  var aReplace = a.acf.location_price.replace('$', '');
-  var bReplace = b.acf.location_price.replace('$', '');
-  if (aReplace > bReplace) {
-    return 1;
-  }
-  if (aReplace < bReplace) {
-    return -1;
-  }
-  return 0;
-};
-
-function sortByDistance (a, b) {
-  var resultA = a.acf.location_distance.match( '^[0-9.]+' );
-  var resultB = b.acf.location_distance.match( '^[0-9.]+' );
-  if (resultA > resultB) {
-    return 1;
-  }
-  if (resultA < resultB) {
-    return -1;
-  }
-  return 0;
-}
 
 export default HotelsListClass;
